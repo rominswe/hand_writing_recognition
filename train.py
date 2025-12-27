@@ -30,59 +30,101 @@ def load_data():
             img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
             
             if img is not None:
-                # 2. Horizontal Slicing Strategy
+                # 2. Horizontal Slicing Strategy (Augmentation)
                 # Training image is 1070px high; Test image is 300px high.
-                # We take 3 slices of 300px to match test feature scale.
+                # STRATEGY: Use a "Sliding Window" to generate many samples from one images.
+                # Instead of 3 chunks, we slide 50px at a time.
                 h, w = img.shape
                 slice_height = 300
+                stride = 20 # Overlap of 280px (MAXIMUM AUGMENTATION)
                 
-                for i in range(3):
-                    start_row = i * slice_height
+                # Check how many slices we can fit
+                # If image is smaller than slice_height, resize it directly check
+                if h < slice_height:
+                     continue
+                
+                current_row = 0
+                while current_row + slice_height <= h:
+                    start_row = current_row
                     end_row = start_row + slice_height
                     
-                    if end_row <= h:
-                        slice_img = img[start_row:end_row, :]
-                        
-                        # Resize for CPU efficiency 
-                        resized = cv2.resize(slice_img, (IMG_WIDTH, IMG_HEIGHT))
-                        
-                        # Normalize pixel values [0, 1] [cite: 63]
-                        images.append(resized.astype('float32') / 255.0)
-                        labels.append(label)
+                    slice_img = img[start_row:end_row, :]
+                    
+                    # 3. Skip if slice is mostly empty (white space)
+                    # Text has high contrast/variance. Blank paper has low variance.
+                    if np.std(slice_img) < 20: 
+                         current_row += stride
+                         continue
+
+                    # Resize for CPU efficiency 
+                    resized = cv2.resize(slice_img, (IMG_WIDTH, IMG_HEIGHT))
+                    
+                    # Normalize pixel values [0, 1] [cite: 63]
+                    images.append(resized.astype('float32') / 255.0)
+                    labels.append(label)
+                    
+                    current_row += stride
 
     return np.array(images).reshape(-1, IMG_HEIGHT, IMG_WIDTH, 1), np.array(labels)
 
 # --- 1. Preprocessing & Data Handling [cite: 63] ---
 print("Loading and preprocessing training data...")
 X, y = load_data()
-X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.3, random_state=67)
+print(f"Dataset Augmented! Total samples generated: {X.shape[0]}")
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=67) # Reduced val size slightly
 
 # --- 2. Model Development (Neural Network Only) [cite: 48, 49] ---
-# A lightweight CNN suitable for a Core i5 CPU [cite: 53, 63]
-
+# Improved Architecture: Deeper but lighter using GAP
 model = models.Sequential([
-    layers.Conv2D(32, (3, 3), activation='relu', input_shape=(IMG_HEIGHT, IMG_WIDTH, 1)),
+    # Block 1
+    layers.Conv2D(32, (3, 3), padding='same', activation='relu', input_shape=(IMG_HEIGHT, IMG_WIDTH, 1)),
     layers.MaxPooling2D((2, 2)),
-    
-    layers.Conv2D(64, (3, 3), activation='relu'),
+    layers.BatchNormalization(),
+
+    # Block 2
+    layers.Conv2D(64, (3, 3), padding='same', activation='relu'),
     layers.MaxPooling2D((2, 2)),
+    layers.BatchNormalization(),
+
+    # Block 3
+    layers.Conv2D(128, (3, 3), padding='same', activation='relu'),
+    layers.MaxPooling2D((2, 2)),
+    layers.BatchNormalization(),
     
-    layers.Conv2D(64, (3, 3), activation='relu'),
-    layers.Flatten(),
+    # Block 4
+    layers.Conv2D(256, (3, 3), padding='same', activation='relu'),
+    layers.MaxPooling2D((2, 2)),
+    layers.BatchNormalization(),
+
+    layers.GlobalAveragePooling2D(),
     
-    layers.Dense(128, activation='relu'),
-    layers.Dropout(0.3), # To prevent overfitting
+    layers.Dropout(0.5), # Back to 0.5
     layers.Dense(NUM_CLASSES, activation='softmax') # 70 Writer IDs
 ])
 
-model.compile(optimizer='adam',
+# Use a lower learning rate for stability
+optimizer = tf.keras.optimizers.Adam(learning_rate=0.001)
+
+model.compile(optimizer=optimizer,
               loss='sparse_categorical_crossentropy',
               metrics=['accuracy'])
 
 # --- 3. Training Quality [cite: 63] ---
 print("Starting training...")
-model.fit(X_train, y_train, epochs=15, batch_size=16, validation_data=(X_val, y_val))
 
-# --- 4. Save Model [cite: 23, 37] ---
-model.save(MODEL_NAME)
-print(f"Model saved as {MODEL_NAME}")
+# CALLBACK: Save the BEST model, not the LAST model
+checkpoint = tf.keras.callbacks.ModelCheckpoint(
+    MODEL_NAME, 
+    monitor='val_loss', 
+    save_best_only=True,
+    mode='min',
+    verbose=1
+)
+
+model.fit(X_train, y_train, 
+          epochs=50, 
+          batch_size=32, 
+          validation_data=(X_val, y_val),
+          callbacks=[checkpoint])
+
+print("Training Complete. The best model was saved automatically during training.")
