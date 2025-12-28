@@ -83,6 +83,12 @@ df.to_csv(RESULT_FILE, index=False)
 
 # --- Confusion Matrix ---
 cm = confusion_matrix(y_true, y_pred, labels=list(range(70)))
+cm_df = pd.DataFrame(
+    cm,
+    index=[f"Writer {str(i+1).zfill(2)}" for i in range(70)],
+    columns=[f"Writer {str(i+1).zfill(2)}" for i in range(70)]
+)
+cm_df.to_csv("confusion_matrix.csv")
 os.makedirs(DOC_DIR, exist_ok=True)
 plt.figure(figsize=(12, 8))
 plt.imshow(cm, interpolation="nearest", cmap="Blues")
@@ -91,11 +97,11 @@ plt.title("Writer Confusion Matrix")
 plt.xlabel("Predicted Writer")
 plt.ylabel("Actual Writer")
 plt.tight_layout()
-plt.savefig(os.path.join(DOC_DIR, "Writer_Confusion_Matrix.png"))
+plt.savefig(os.path.join(DOC_DIR, "writer_confusion_matrix.png"))
 
 # --- Accuracy ---
 accuracy = (np.sum(np.array(y_true) == np.array(y_pred)) / len(y_true)) * 100
 print(f"Total test images: {len(y_true)}")
 print(f"Top-1 Accuracy   : {accuracy:.2f}%")
 print(f"Results CSV saved at {RESULT_FILE}")
-print(f"Confusion matrix saved at {DOC_DIR}/Writer_Confusion_Matrix.png")
+print(f"Confusion matrix saved at {DOC_DIR}/writer_confusion_matrix.png")
