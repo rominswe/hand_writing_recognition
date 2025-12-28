@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 warnings.filterwarnings("ignore")  
 
 # --- Configuration ---
-TRAIN_DIR = 'train/'  # Folder containing training images [cite: 10]
+TRAIN_DIR = 'train/'  # Folder containing training images
 DOC_DIR = "doc"
 IMG_WIDTH = 256       # Downsampled width for CPU efficiency 
 IMG_HEIGHT = 96      # Downsampled height for CPU efficiency 
