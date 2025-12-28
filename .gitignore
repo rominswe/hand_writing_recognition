@@ -205,3 +205,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+#Ignore Model Files
+*.h5
+*.keras
+*.ckpt
+*.pb
