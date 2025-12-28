@@ -153,7 +153,6 @@ __marimo__/
 
 # Data / exports
 *.csv
-!result.csv
 *.tsv
 *.xml
 *.yaml

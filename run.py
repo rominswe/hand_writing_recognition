@@ -102,6 +102,6 @@ plt.savefig(os.path.join(DOC_DIR, "writer_confusion_matrix.png"))
 # --- Accuracy ---
 accuracy = (np.sum(np.array(y_true) == np.array(y_pred)) / len(y_true)) * 100
 print(f"Total test images: {len(y_true)}")
-print(f"Top-1 Accuracy   : {accuracy:.2f}%")
+print(f"Average Accuracy   : {accuracy:.2f}%")
 print(f"Results CSV saved at {RESULT_FILE}")
 print(f"Confusion matrix saved at {DOC_DIR}/writer_confusion_matrix.png")
