@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, f1_score
 
 # --- CONFIG (MUST MATCH train.py) ---
 TEST_DIR = 'test/'
@@ -81,6 +81,9 @@ for filename in files:
 df = pd.DataFrame(results, columns=["filename", "actual", "predicted"])
 df.to_csv(RESULT_FILE, index=False)
 
+# --- Accuracy ---
+accuracy = (np.sum(np.array(y_true) == np.array(y_pred)) / len(y_true)) * 100
+
 # --- Confusion Matrix ---
 cm = confusion_matrix(y_true, y_pred, labels=list(range(70)))
 cm_df = pd.DataFrame(
@@ -98,10 +101,34 @@ plt.xlabel("Predicted Writer")
 plt.ylabel("Actual Writer")
 plt.tight_layout()
 plt.savefig(os.path.join(DOC_DIR, "writer_confusion_matrix.png"))
+plt.close()
 
-# --- Accuracy ---
-accuracy = (np.sum(np.array(y_true) == np.array(y_pred)) / len(y_true)) * 100
+# --- F1 Score ---
+macro_f1 = f1_score(y_true, y_pred, average="macro")
+print(f"Macro F1 Score     : {macro_f1:.4f}")
+per_class_f1 = f1_score(y_true, y_pred, average=None)
+f1_df = pd.DataFrame({
+    "Writer": [f"Writer {str(i+1).zfill(2)}" for i in range(len(per_class_f1))],
+    "F1_Score": per_class_f1
+})
+f1_df.to_csv("f1_scores.csv", index=False)
+plt.figure(figsize=(14, 6))
+plt.bar(range(len(per_class_f1)), per_class_f1)
+plt.xticks(
+    range(len(per_class_f1)),
+    [f"{i+1:02d}" for i in range(len(per_class_f1))],
+    rotation=90
+)
+plt.xlabel("Writer ID")
+plt.ylabel("F1 Score")
+plt.title("Per-Writer F1 Score Distribution")
+plt.tight_layout()
+os.makedirs(DOC_DIR, exist_ok=True)
+plt.savefig(os.path.join(DOC_DIR, "writer_f1_scores.png"))
+plt.close()
+
 print(f"Total test images: {len(y_true)}")
 print(f"Average Accuracy   : {accuracy:.2f}%")
 print(f"Results CSV saved at {RESULT_FILE}")
 print(f"Confusion matrix saved at {DOC_DIR}/writer_confusion_matrix.png")
+print(f"F1 score plot saved at {DOC_DIR}/writer_f1_scores.png")
